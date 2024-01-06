@@ -1,10 +1,11 @@
 package com.myxh.chatgpt.session;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import com.myxh.chatgpt.IOpenAiApi;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.OkHttpClient;
+import okhttp3.sse.EventSource;
+import okhttp3.sse.EventSources;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -20,11 +21,21 @@ import org.jetbrains.annotations.NotNull;
 @AllArgsConstructor
 public class Configuration
 {
+    @Setter
+    private IOpenAiApi openAiApi;
+
+    @Setter
+    private OkHttpClient okHttpClient;
+
     @NotNull
     private String apiKey;
 
     private String apiHost;
 
-    // @NotNull
     private String authToken;
+
+    public EventSource.Factory createRequestFactory()
+    {
+        return EventSources.createFactory(okHttpClient);
+    }
 }
