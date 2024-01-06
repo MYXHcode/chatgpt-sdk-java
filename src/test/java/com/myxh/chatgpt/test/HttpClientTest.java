@@ -16,6 +16,7 @@ import okhttp3.logging.HttpLoggingInterceptor;
 import okhttp3.sse.EventSource;
 import okhttp3.sse.EventSourceListener;
 import okhttp3.sse.EventSources;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
 import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
@@ -126,7 +127,7 @@ public class HttpClientTest
         EventSource eventSource = factory.newEventSource(request, new EventSourceListener()
         {
             @Override
-            public void onEvent(EventSource eventSource, String id, String type, String data)
+            public void onEvent(@NotNull EventSource eventSource, String id, String type, @NotNull String data)
             {
                 log.info("测试结果：{}", data);
             }
