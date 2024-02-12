@@ -33,13 +33,13 @@ public class DefaultOpenAiSessionFactory implements OpenAiSessionFactory
     {
         // 1. 日志配置
         HttpLoggingInterceptor httpLoggingInterceptor = new HttpLoggingInterceptor();
-        httpLoggingInterceptor.setLevel(HttpLoggingInterceptor.Level.HEADERS);
+        httpLoggingInterceptor.setLevel(HttpLoggingInterceptor.Level.NONE);
 
         // 2. 开启 Http 客户端
         OkHttpClient okHttpClient = new OkHttpClient
                 .Builder()
                 .addInterceptor(httpLoggingInterceptor)
-                .addInterceptor(new OpenAiInterceptor(configuration.getApiKey(), configuration.getAuthToken()))
+                .addInterceptor(new OpenAiInterceptor(configuration.getApiKey()))
                 .connectTimeout(450, TimeUnit.SECONDS)
                 .writeTimeout(450, TimeUnit.SECONDS)
                 .readTimeout(450, TimeUnit.SECONDS)

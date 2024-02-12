@@ -24,13 +24,14 @@ import com.myxh.chatgpt.session.OpenAiSession;
 import com.myxh.chatgpt.session.OpenAiSessionFactory;
 import com.myxh.chatgpt.session.defaults.DefaultOpenAiSessionFactory;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.Response;
 import okhttp3.sse.EventSource;
 import okhttp3.sse.EventSourceListener;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,12 +52,11 @@ public class ApiTest
     public void testOpenAiSessionFactory()
     {
         // 1. 配置文件
+        // 1.1 官网原始 apiHost https://api.openai.com/ - 官网的 Key 可直接使用
+        // 1.2 三方公司 apiHost https://pro-share-aws-api.zcyai.com/ - 需要找我获得 Key 【支持3.5\4.0流式问答模型调用，有些模型已废弃不对接使用】
         Configuration configuration = new Configuration();
-        configuration.setApiHost("https://api.xfg.im/b8b6/");
-        configuration.setApiKey("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");
-
-        // 测试时候，需要先获得授权token：http://api.xfg.im:8080/authorize?username=xfg&password=123 - 此地址暂时有效，后续根据课程首页说明获取 token；https://t.zsxq.com/0d3o5FKvc
-        configuration.setAuthToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4ZmciLCJleHAiOjE2ODQ1OTAwMTMsImlhdCI6MTY4NDU4NjQxMywianRpIjoiMTE2ZjAyYjItZGZmNC00Y2IwLTg4YTMtZThiODJkYzEyYjZiIiwidXNlcm5hbWUiOiJ4ZmcifQ.D5-nCkA47n9ZoGY6yz6d03BF7mz9UxPM-sHgzJwVhS4");
+        configuration.setApiHost("https://pro-share-aws-api.zcyai.com/");
+        configuration.setApiKey("sk-b0A0eSKTNxgBqrHv7aAa0808EdB849C89499D928648bD416");
 
         // 2. 会话工厂
         OpenAiSessionFactory factory = new DefaultOpenAiSessionFactory(configuration);
@@ -66,12 +66,88 @@ public class ApiTest
     }
 
     /**
+     * 【常用对话模式，推荐使用此模型进行测试】
+     * 此对话模型 3.5/4.0 接近于官网体验 & 流式应答
+     */
+    @Test
+    public void testChatCompletionsStreamChannel() throws JsonProcessingException, InterruptedException
+    {
+        // 1. 创建参数
+        ChatCompletionRequest chatCompletion = ChatCompletionRequest
+                .builder()
+                .stream(true)
+                .messages(Collections.singletonList(Message.builder().role(Constants.Role.USER).content("1+1").build()))
+                .model(ChatCompletionRequest.Model.GPT_3_5_TURBO.getCode())
+                .maxTokens(1024)
+                .build();
+
+        // 2. 用户配置 【可选参数，支持不同渠道的 apiHost、apiKey】- 方便给每个用户都分配了自己的 key，用于售卖场景
+        String apiHost = "https://pro-share-aws-api.zcyai.com/";
+        String apiKey = "sk-b0A0eSKTNxgBqrHv7aAa0808EdB849C89499D928648bD416";
+
+        // 3. 发起请求
+        EventSource eventSource = openAiSession.chatCompletions(apiHost, apiKey, chatCompletion, new EventSourceListener()
+        {
+            @Override
+            public void onEvent(EventSource eventSource, String id, String type, String data)
+            {
+                log.info("测试结果 id:{} type:{} data:{}", id, type, data);
+            }
+
+            @Override
+            public void onFailure(EventSource eventSource, Throwable t, Response response)
+            {
+                log.error("失败 code:{} message:{}", response.code(), response.message());
+            }
+        });
+
+        // 等待
+        new CountDownLatch(1).await();
+    }
+
+    /**
+     * 【常用对话模式，推荐使用此模型进行测试】
+     * 此对话模型 3.5/4.0 接近于官网体验 & 流式应答
+     */
+    @Test
+    public void testChatCompletionsStream() throws JsonProcessingException, InterruptedException
+    {
+        // 1. 创建参数
+        ChatCompletionRequest chatCompletion = ChatCompletionRequest
+                .builder()
+                .stream(true)
+                .messages(Collections.singletonList(Message.builder().role(Constants.Role.USER).content("1+1").build()))
+                .model(ChatCompletionRequest.Model.GPT_3_5_TURBO.getCode())
+                .maxTokens(1024)
+                .build();
+
+        // 2. 发起请求
+        EventSource eventSource = openAiSession.chatCompletions(chatCompletion, new EventSourceListener()
+        {
+            @Override
+            public void onEvent(EventSource eventSource, String id, String type, String data)
+            {
+                log.info("测试结果 id:{} type:{} data:{}", id, type, data);
+            }
+
+            @Override
+            public void onFailure(EventSource eventSource, Throwable t, Response response)
+            {
+                log.error("失败 code:{} message:{}", response.code(), response.message());
+            }
+        });
+
+        // 等待
+        new CountDownLatch(1).await();
+    }
+
+    /**
      * 简单问答模式
      */
     @Test
     public void testQaCompletions() throws JsonProcessingException
     {
-        QACompletionResponse response01 = openAiSession.completions("写个java冒泡排序");
+        QACompletionResponse response01 = openAiSession.completions("写个 java 冒泡排序");
         log.info("测试结果：{}", new ObjectMapper().writeValueAsString(response01.getChoices()));
     }
 
@@ -84,7 +160,7 @@ public class ApiTest
         // 1. 创建参数
         QACompletionRequest request = QACompletionRequest
                 .builder()
-                .prompt("写个java冒泡排序")
+                .prompt("写个 java 冒泡排序")
                 .stream(true)
                 .build();
 
@@ -94,7 +170,7 @@ public class ApiTest
             EventSource eventSource = openAiSession.completions(request, new EventSourceListener()
             {
                 @Override
-                public void onEvent(@NotNull EventSource eventSource, String id, String type, @NotNull String data)
+                public void onEvent(EventSource eventSource, String id, String type, String data)
                 {
                     log.info("测试结果：{}", data);
                 }
@@ -114,7 +190,7 @@ public class ApiTest
         // 1. 创建参数
         ChatCompletionRequest chatCompletion = ChatCompletionRequest
                 .builder()
-                .messages(Collections.singletonList(Message.builder().role(Constants.Role.USER).content("写一个java冒泡排序").build()))
+                .messages(Collections.singletonList(Message.builder().role(Constants.Role.USER).content("写一个 java 冒泡排序").build()))
                 .model(ChatCompletionRequest.Model.GPT_3_5_TURBO.getCode())
                 .build();
 
@@ -131,7 +207,7 @@ public class ApiTest
     @Test
     public void testChatCompletionsContext()
     {
-        // 1-1. 创建参数
+        // 1.1 创建参数
         ChatCompletionRequest chatCompletion = ChatCompletionRequest
                 .builder()
                 .messages(new ArrayList<>())
@@ -140,9 +216,9 @@ public class ApiTest
                 .build();
 
         // 写入请求信息
-        chatCompletion.getMessages().add(Message.builder().role(Constants.Role.USER).content("写一个java冒泡排序").build());
+        chatCompletion.getMessages().add(Message.builder().role(Constants.Role.USER).content("写一个 java 冒泡排序").build());
 
-        // 1-2. 发起请求
+        // 1.2 发起请求
         ChatCompletionResponse chatCompletionResponse01 = openAiSession.completions(chatCompletion);
         log.info("测试结果：{}", chatCompletionResponse01.getChoices());
 
@@ -152,34 +228,6 @@ public class ApiTest
 
         ChatCompletionResponse chatCompletionResponse02 = openAiSession.completions(chatCompletion);
         log.info("测试结果：{}", chatCompletionResponse02.getChoices());
-    }
-
-    /**
-     * 此对话模型 3.5 接近于官网体验 & 流式应答
-     */
-    @Test
-    public void testChatCompletionsStream() throws JsonProcessingException, InterruptedException
-    {
-        // 1. 创建参数
-        ChatCompletionRequest chatCompletion = ChatCompletionRequest
-                .builder()
-                .stream(true)
-                .messages(Collections.singletonList(Message.builder().role(Constants.Role.USER).content("写一个java冒泡排序").build()))
-                .model(ChatCompletionRequest.Model.GPT_3_5_TURBO.getCode())
-                .build();
-
-        // 2. 发起请求
-        EventSource eventSource = openAiSession.chatCompletions(chatCompletion, new EventSourceListener()
-        {
-            @Override
-            public void onEvent(@NotNull EventSource eventSource, String id, String type, @NotNull String data)
-            {
-                log.info("测试结果：{}", data);
-            }
-        });
-
-        // 等待
-        new CountDownLatch(1).await();
     }
 
     /**
@@ -199,7 +247,8 @@ public class ApiTest
         // 代码请求
         EditRequest codeRequest = EditRequest.builder()
                 // j <= 10 应该修改为 i <= 10
-                .input("for (int i = 1; j <= 10; i++) {\n" +
+                .input("for (int i = 1; j <= 10; i++) \n" +
+                        "{\n" +
                         "    System.out.println(i);\n" +
                         "}")
                 .instruction("这段代码执行时报错，请帮我修改").model(EditRequest.Model.CODE_DAVINCI_EDIT_001.getCode()).build();
@@ -213,23 +262,23 @@ public class ApiTest
     @Test
     public void testGenImages()
     {
-        // 方式1，简单调用
-        ImageResponse imageResponse01 = openAiSession.genImages("画一个996加班的程序员");
+        // 方式 1，简单调用
+        ImageResponse imageResponse01 = openAiSession.genImages("画一个 996 加班的程序员");
         log.info("测试结果：{}", imageResponse01);
 
-        // 方式2，调参调用
+        // 方式 2，调参调用
         ImageResponse imageResponse02 = openAiSession.genImages(ImageRequest.builder()
-                .prompt("画一个996加班的程序员")
+                .prompt("画一个 996 加班的程序员")
                 .size(ImageEnum.Size.size_256.getCode())
                 .responseFormat(ImageEnum.ResponseFormat.B64_JSON.getCode()).build());
         log.info("测试结果：{}", imageResponse02);
     }
 
     /**
-     * 修改图片，有3个方法，入参不同。
+     * 修改图片，有 3 个方法，入参不同。
      */
     @Test
-    public void testEditImages()
+    public void testEditImages() throws IOException
     {
         ImageResponse imageResponse = openAiSession.editImages(new File("D:\\CodeProjects\\Java\\ChatGPT\\chatgpt-sdk-java\\docs\\images\\996.png"), "去除图片中的文字");
         log.info("测试结果：{}", imageResponse);
@@ -273,7 +322,7 @@ public class ApiTest
     @Test
     public void testBillingUsage()
     {
-        BillingUsage billingUsage = openAiSession.billingUsage(LocalDate.of(2023, 3, 20), LocalDate.now());
+        BillingUsage billingUsage = openAiSession.billingUsage(LocalDate.of(2024, 2, 12), LocalDate.now());
         log.info("测试结果：{}", billingUsage.getTotalUsage());
     }
 }

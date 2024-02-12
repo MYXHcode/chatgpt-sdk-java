@@ -2,7 +2,7 @@ package com.myxh.chatgpt.interceptor;
 
 import cn.hutool.http.ContentType;
 import cn.hutool.http.Header;
-import okhttp3.HttpUrl;
+import com.myxh.chatgpt.common.Constants;
 import okhttp3.Interceptor;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -21,39 +21,33 @@ public class OpenAiInterceptor implements Interceptor
     /**
      * OpenAi apiKey 需要在官网申请
      */
-    private final String apiKey;
+    private final String apiKeyBySystem;
 
-    /**
-     * 访问授权接口的认证 Token
-     */
-    private final String authToken;
-
-    public OpenAiInterceptor(String apiKey, String authToken)
+    public OpenAiInterceptor(String apiKey)
     {
-        this.apiKey = apiKey;
-        this.authToken = authToken;
+        this.apiKeyBySystem = apiKey;
     }
 
     @NotNull
     @Override
     public Response intercept(Chain chain) throws IOException
     {
-        return chain.proceed(this.auth(apiKey, chain.request()));
-    }
+        // 1. 获取原始 Request
+        Request original = chain.request();
 
-    private Request auth(String apiKey, Request original)
-    {
-        // 设置 Token 信息；如果没有此类限制，是不需要设置的。
-        HttpUrl url = original.url().newBuilder()
-                .addQueryParameter("token", authToken)
-                .build();
+        // 2. 读取 apiKey，优先使用自己传递的 apiKey
+        String apiKeyByUser = original.header("apiKey");
+        String apiKey = Constants.NULL.equals(apiKeyByUser) ? apiKeyBySystem : apiKeyByUser;
 
-        // 创建请求
-        return original.newBuilder()
-                .url(url)
+        // 3. 构建 Request
+        Request request = original.newBuilder()
+                .url(original.url())
                 .header(Header.AUTHORIZATION.getValue(), "Bearer " + apiKey)
                 .header(Header.CONTENT_TYPE.getValue(), ContentType.JSON.getValue())
                 .method(original.method(), original.body())
                 .build();
+
+        // 4. 返回执行结果
+        return chain.proceed(request);
     }
 }

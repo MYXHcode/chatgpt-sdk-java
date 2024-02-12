@@ -1,13 +1,17 @@
 package com.myxh.chatgpt.test;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.myxh.chatgpt.common.Constants;
 import com.myxh.chatgpt.domain.chat.ChatCompletionRequest;
-import com.myxh.chatgpt.domain.chat.ChatCompletionResponse;
 import com.myxh.chatgpt.domain.chat.Message;
 import com.myxh.chatgpt.session.Configuration;
 import com.myxh.chatgpt.session.OpenAiSession;
 import com.myxh.chatgpt.session.OpenAiSessionFactory;
 import com.myxh.chatgpt.session.defaults.DefaultOpenAiSessionFactory;
+import lombok.extern.slf4j.Slf4j;
+import okhttp3.Response;
+import okhttp3.sse.EventSource;
+import okhttp3.sse.EventSourceListener;
 
 import java.util.ArrayList;
 import java.util.Scanner;
@@ -18,17 +22,17 @@ import java.util.Scanner;
  * @description 客户端输入测试
  * @GitHub <a href="https://github.com/MYXHcode">MYXHcode</a>
  */
+@Slf4j
 public class ClientTest
 {
-
-    public static void main(String[] args)
+    public static void main(String[] args) throws InterruptedException, JsonProcessingException
     {
-        // 1. 配置文件
+        // 1. 配置文件；
+        // 1.1 官网原始 apiHost https://api.openai.com/ - 官网的 Key 可直接使用
+        // 1.2 三方公司 apiHost https://pro-share-aws-api.zcyai.com/ - 需要找我获得 Key
         Configuration configuration = new Configuration();
-        configuration.setApiHost("https://api.xfg.im/b8b6/");
-        configuration.setApiKey("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");
-        // 测试时候，需要先获得授权token：http://api.xfg.im:8080/authorize?username=xfg&password=123 - 此地址暂时有效，后续根据课程首页说明获取 token；https://t.zsxq.com/0d3o5FKvc
-        configuration.setAuthToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4ZmciLCJleHAiOjE2ODQ2MzEwNjAsImlhdCI6MTY4NDYyNzQ2MCwianRpIjoiMGU2M2Q3NDctNDk1YS00NDU3LTk1ZTAtOWVjMzkwNTlkNmQzIiwidXNlcm5hbWUiOiJ4ZmcifQ.xX4kaw-Pz2Jm4LBSvADzijud4nlNLFQUOaN6UgxrK9E");
+        configuration.setApiHost("https://pro-share-aws-api.zcyai.com/");
+        configuration.setApiKey("sk-b0A0eSKTNxgBqrHv7aAa0808EdB849C89499D928648bD416");
 
         // 2. 会话工厂
         OpenAiSessionFactory factory = new DefaultOpenAiSessionFactory(configuration);
@@ -38,9 +42,10 @@ public class ClientTest
 
         ChatCompletionRequest chatCompletion = ChatCompletionRequest
                 .builder()
+                .stream(true)
                 .messages(new ArrayList<>())
                 .model(ChatCompletionRequest.Model.GPT_3_5_TURBO.getCode())
-                .user("testUser01")
+                .maxTokens(1024)
                 .build();
 
         // 3. 等待输入
@@ -48,13 +53,28 @@ public class ClientTest
         while (scanner.hasNextLine())
         {
             String text = scanner.nextLine();
-            chatCompletion.getMessages().add(Message.builder().role(Constants.Role.USER).content(text).build());
-            ChatCompletionResponse chatCompletionResponse = openAiSession.completions(chatCompletion);
-            chatCompletion.getMessages().add(Message.builder().role(Constants.Role.USER).content(chatCompletionResponse.getChoices().get(0).getMessage().getContent()).build());
 
-            // 输出结果
-            System.out.println(chatCompletionResponse.getChoices().get(0).getMessage().getContent());
-            System.out.println("请输入你的问题：");
+            chatCompletion.getMessages().add(Message.builder().role(Constants.Role.USER).content(text).build());
+            EventSource eventSource = openAiSession.chatCompletions(chatCompletion, new EventSourceListener()
+            {
+                @Override
+                public void onEvent(EventSource eventSource, String id, String type, String data)
+                {
+                    System.out.println(data);
+                }
+
+                @Override
+                public void onFailure(EventSource eventSource, Throwable t, Response response)
+                {
+                    System.out.println(response.code());
+                }
+
+                @Override
+                public void onClosed(EventSource eventSource)
+                {
+                    System.out.println("请输入你的问题：");
+                }
+            });
         }
     }
 }

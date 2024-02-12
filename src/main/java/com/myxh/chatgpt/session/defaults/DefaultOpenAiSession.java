@@ -5,6 +5,7 @@ import cn.hutool.http.ContentType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.myxh.chatgpt.IOpenAiApi;
+import com.myxh.chatgpt.common.Constants;
 import com.myxh.chatgpt.domain.billing.BillingUsage;
 import com.myxh.chatgpt.domain.billing.Subscription;
 import com.myxh.chatgpt.domain.chat.ChatCompletionRequest;
@@ -115,16 +116,27 @@ public class DefaultOpenAiSession implements OpenAiSession
     @Override
     public EventSource chatCompletions(ChatCompletionRequest chatCompletionRequest, EventSourceListener eventSourceListener) throws JsonProcessingException
     {
-        // 核心参数校验：不对用户的传参做更改，只返回错误信息
+        return chatCompletions(Constants.NULL, Constants.NULL, chatCompletionRequest, eventSourceListener);
+    }
+
+    @Override
+    public EventSource chatCompletions(String apiHostByUser, String apiKeyByUser, ChatCompletionRequest chatCompletionRequest, EventSourceListener eventSourceListener) throws JsonProcessingException
+    {
+        // 核心参数校验；不对用户的传参做更改，只返回错误信息
         if (!chatCompletionRequest.isStream())
         {
             throw new RuntimeException("illegal parameter stream is false!");
         }
 
+        // 动态设置 Host、Key，便于用户传递自己的信息
+        String apiHost = Constants.NULL.equals(apiHostByUser) ? configuration.getApiHost() : apiHostByUser;
+        String apiKey = Constants.NULL.equals(apiKeyByUser) ? configuration.getApiKey() : apiKeyByUser;
+
         // 构建请求信息
         Request request = new Request.Builder()
                 // url: https://api.openai.com/v1/chat/completions - 通过 IOpenAiApi 配置的 POST 接口，用这样的方式从统一的地方获取配置信息
-                .url(configuration.getApiHost().concat(IOpenAiApi.v1_chat_completions))
+                .url(apiHost.concat(IOpenAiApi.v1_chat_completions))
+                .addHeader("apiKey", apiKey)
 
                 // 封装请求参数信息，如果使用了 Fastjson 也可以替换 ObjectMapper 转换对象
                 .post(RequestBody.create(MediaType.parse(ContentType.JSON.getValue()), new ObjectMapper().writeValueAsString(chatCompletionRequest)))
