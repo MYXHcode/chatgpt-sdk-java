@@ -2,7 +2,6 @@ package com.myxh.chatgpt.interceptor;
 
 import cn.hutool.http.ContentType;
 import cn.hutool.http.Header;
-import com.myxh.chatgpt.common.Constants;
 import okhttp3.Interceptor;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -37,7 +36,7 @@ public class OpenAiInterceptor implements Interceptor
 
         // 2. 读取 apiKey，优先使用自己传递的 apiKey
         String apiKeyByUser = original.header("apiKey");
-        String apiKey = Constants.NULL.equals(apiKeyByUser) ? apiKeyBySystem : apiKeyByUser;
+        String apiKey = null == apiKeyByUser ? apiKeyBySystem : apiKeyByUser;
 
         // 3. 构建 Request
         Request request = original.newBuilder()

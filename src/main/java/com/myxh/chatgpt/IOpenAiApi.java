@@ -94,7 +94,6 @@ public interface IOpenAiApi
     @POST("v1/images/generations")
     Single<ImageResponse> genImages(@Body ImageRequest imageRequest);
 
-
     /**
      * 修改图片
      * <p>

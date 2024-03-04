@@ -2,14 +2,17 @@ package com.myxh.chatgpt.session.defaults;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.ContentType;
+import com.alibaba.fastjson.JSON;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.myxh.chatgpt.IOpenAiApi;
 import com.myxh.chatgpt.common.Constants;
 import com.myxh.chatgpt.domain.billing.BillingUsage;
 import com.myxh.chatgpt.domain.billing.Subscription;
+import com.myxh.chatgpt.domain.chat.ChatChoice;
 import com.myxh.chatgpt.domain.chat.ChatCompletionRequest;
 import com.myxh.chatgpt.domain.chat.ChatCompletionResponse;
+import com.myxh.chatgpt.domain.chat.Message;
 import com.myxh.chatgpt.domain.edits.EditRequest;
 import com.myxh.chatgpt.domain.edits.EditResponse;
 import com.myxh.chatgpt.domain.embedd.EmbeddingRequest;
@@ -28,10 +31,7 @@ import com.myxh.chatgpt.domain.whisper.WhisperResponse;
 import com.myxh.chatgpt.session.Configuration;
 import com.myxh.chatgpt.session.OpenAiSession;
 import io.reactivex.Single;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.Request;
-import okhttp3.RequestBody;
+import okhttp3.*;
 import okhttp3.sse.EventSource;
 import okhttp3.sse.EventSourceListener;
 import org.jetbrains.annotations.NotNull;
@@ -39,6 +39,7 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * @author MYXH
@@ -117,6 +118,73 @@ public class DefaultOpenAiSession implements OpenAiSession
     public EventSource chatCompletions(ChatCompletionRequest chatCompletionRequest, EventSourceListener eventSourceListener) throws JsonProcessingException
     {
         return chatCompletions(Constants.NULL, Constants.NULL, chatCompletionRequest, eventSourceListener);
+    }
+
+    @Override
+    public CompletableFuture<String> chatCompletions(ChatCompletionRequest chatCompletionRequest) throws InterruptedException, JsonProcessingException
+    {
+        // 用于执行异步任务并获取结果
+        CompletableFuture<String> future = new CompletableFuture<>();
+        StringBuffer dataBuffer = new StringBuffer();
+
+        chatCompletions(chatCompletionRequest, new EventSourceListener()
+        {
+            @Override
+            public void onEvent(EventSource eventSource, String id, String type, String data)
+            {
+                if ("[DONE]".equalsIgnoreCase(data))
+                {
+                    onClosed(eventSource);
+                    future.complete(dataBuffer.toString());
+                }
+
+                ChatCompletionResponse chatCompletionResponse = JSON.parseObject(data, ChatCompletionResponse.class);
+                List<ChatChoice> choices = chatCompletionResponse.getChoices();
+
+                for (ChatChoice chatChoice : choices)
+                {
+                    Message delta = chatChoice.getDelta();
+                    if (Constants.Role.ASSISTANT.getCode().equals(delta.getRole()))
+                    {
+                        continue;
+                    }
+
+                    // 应答完成
+                    String finishReason = chatChoice.getFinishReason();
+
+                    if ("stop".equalsIgnoreCase(finishReason))
+                    {
+                        onClosed(eventSource);
+
+                        return;
+                    }
+
+                    // 发送信息
+                    try
+                    {
+                        dataBuffer.append(delta.getContent());
+                    }
+                    catch (Exception e)
+                    {
+                        future.completeExceptionally(new RuntimeException("Request closed before completion"));
+                    }
+                }
+            }
+
+            @Override
+            public void onClosed(EventSource eventSource)
+            {
+                future.complete(dataBuffer.toString());
+            }
+
+            @Override
+            public void onFailure(EventSource eventSource, Throwable t, Response response)
+            {
+                future.completeExceptionally(new RuntimeException("Request closed before completion"));
+            }
+        });
+
+        return future;
     }
 
     @Override

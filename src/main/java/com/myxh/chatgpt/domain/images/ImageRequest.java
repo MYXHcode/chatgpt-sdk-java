@@ -22,6 +22,11 @@ import java.io.Serializable;
 public class ImageRequest extends ImageEnum implements Serializable
 {
     /**
+     * 模型
+     */
+    private String model = Model.DALL_E_3.code;
+
+    /**
      * 问题描述
      */
     @NonNull
@@ -37,7 +42,7 @@ public class ImageRequest extends ImageEnum implements Serializable
      * 图片大小
      */
     @Builder.Default
-    private String size = Size.size_256.getCode();
+    private String size = Size.size_1024.getCode();
 
     /**
      * 图片格式化方式：URL、B64_JSON
@@ -46,6 +51,14 @@ public class ImageRequest extends ImageEnum implements Serializable
     @Builder.Default
     private String responseFormat = ResponseFormat.URL.getCode();
 
-    @Setter
-    private String user;
+    @Getter
+    @AllArgsConstructor
+    public enum Model
+    {
+        DALL_E_2("dall-e-2"),
+        DALL_E_3("dall-e-3"),
+        ;
+
+        private final String code;
+    }
 }

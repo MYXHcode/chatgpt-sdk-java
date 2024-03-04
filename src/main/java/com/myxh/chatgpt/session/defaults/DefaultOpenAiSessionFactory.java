@@ -33,7 +33,7 @@ public class DefaultOpenAiSessionFactory implements OpenAiSessionFactory
     {
         // 1. 日志配置
         HttpLoggingInterceptor httpLoggingInterceptor = new HttpLoggingInterceptor();
-        httpLoggingInterceptor.setLevel(HttpLoggingInterceptor.Level.NONE);
+        httpLoggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
 
         // 2. 开启 Http 客户端
         OkHttpClient okHttpClient = new OkHttpClient

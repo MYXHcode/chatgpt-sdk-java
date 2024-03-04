@@ -27,6 +27,7 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * @author MYXH
@@ -76,6 +77,14 @@ public interface OpenAiSession
      * @return 应答结果
      */
     EventSource chatCompletions(ChatCompletionRequest chatCompletionRequest, EventSourceListener eventSourceListener) throws JsonProcessingException;
+
+    /**
+     * 问答模型 GPT-3.5/4.0 & 流式反馈 & 一次反馈
+     *
+     * @param chatCompletionRequest 请求信息
+     * @return 应答结果
+     */
+    CompletableFuture<String> chatCompletions(ChatCompletionRequest chatCompletionRequest) throws InterruptedException, JsonProcessingException;
 
     /**
      * 问答模型 GPT-3.5/4.0 & 流式反馈
