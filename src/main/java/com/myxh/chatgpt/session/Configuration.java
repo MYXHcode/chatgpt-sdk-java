@@ -33,7 +33,7 @@ public class Configuration
     private String apiHost;
 
     /**
-     * 字段废弃，不在使用
+     * 字段废弃，不再使用
      */
     @Deprecated
     private String authToken;

@@ -1,6 +1,6 @@
 # OpenAi 大模型开放 SDK - By MYXH
 
-为了让研发伙伴更快，更方便的接入使用OpenAi 大模型。从而开发的 chatgpt-sdk-java 也欢迎👏🏻大家基于OpenAi API接口补充需要的功能。
+为了让研发伙伴更快，更方便的接入使用OpenAi 大模型。从而开发的 chatgpt-sdk-java，也欢迎👏🏻大家基于OpenAi API接口补充需要的功能。
 
 此SDK设计，以 Session 会话模型，提供工厂🏭创建服务。代码非常清晰，易于扩展、易于维护。你的 PR/ISSUE 贡献💐会让 AI 更加璀璨，[感谢 OpenAi 团队](https://openai.com/)。
 
